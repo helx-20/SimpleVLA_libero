@@ -1,0 +1,98 @@
+"""
+SmolVLM-VLA Configuration
+
+Configuration class for SmolVLM-500M-Instruct based VLA model.
+Uses SmolVLM as the vision-language backbone instead of Florence2.
+"""
+
+from transformers.configuration_utils import PretrainedConfig
+
+
+class SmolVLMVLAConfig(PretrainedConfig):
+    """
+    Configuration class for the **SmolVLM-VLA (SmolVLM Vision-Language-Action)** model.
+
+    This configuration defines all submodules of SmolVLM-VLA:
+      - The visual-language backbone (SmolVLM-500M-Instruct)
+      - The temporal/action transformer
+      - The action/proprio setup
+      
+    Key differences from FlorenceVLA:
+      - Uses SmolVLM (500M) instead of Florence2
+      - Input image size: 512x512 (SmolVLM-500M uses 512x512 patches)
+      - All views input to VLM directly, no aux_visual_inputs
+      - Efficient model suitable for on-device applications
+    """
+
+    model_type = "smolvlm_vla"
+
+    def __init__(
+        self,
+        # === SmolVLM backbone ===
+        smolvlm_model_path: str = "HuggingFaceTB/SmolVLM-500M-Instruct",
+        
+        # === Transformer head ===
+        hidden_size: int = 768,  # Action transformer hidden size
+        depth: int = 12,  # Number of transformer layers
+        num_heads: int = 12,
+        mlp_ratio: float = 4.0,
+        dim_time: int = 32,
+        max_len_seq: int = 512,  
+
+        # === Action & proprio ===
+        num_actions: int = 30,
+        action_mode: str = "galaxea_joint",
+        use_proprio: bool = True,
+        
+        # === DiT/AdaLN Mode ===
+        use_adaln: bool = False,
+        
+        # === Image settings ===
+        image_size: int = 384,  # Can be 384 or 512
+        num_views: int = 3,  # Number of camera views
+
+        # === Offline-PPO heads (only used when training with PPO + BC) ===
+        # Gaussian wrapper around the flow-matching policy mean: a = μ + σ·ε with σ = exp(logstd).
+        # logstd has shape (num_actions, dim_action); init_logstd seeds every entry.
+        init_logstd: float = -1.0,
+        # Value head on pooled VLM features: LN -> Linear(value_hidden) -> GELU -> Linear(1).
+        value_hidden: int = 512,
+
+        **kwargs,
+    ):
+        # SmolVLM backbone path
+        self.smolvlm_model_path = smolvlm_model_path
+        
+        # Transformer hyperparameters
+        self.hidden_size = hidden_size
+        self.depth = depth
+        self.num_heads = num_heads
+        self.mlp_ratio = mlp_ratio
+        self.dim_time = dim_time
+        self.max_len_seq = max_len_seq
+
+        # Action/proprioception settings
+        self.num_actions = num_actions
+        self.action_mode = action_mode
+        self.use_proprio = use_proprio
+        
+        # DiT/AdaLN settings
+        self.use_adaln = use_adaln
+        
+        # Image settings
+        self.image_size = image_size
+        self.num_views = num_views
+
+        # Offline-PPO heads (defaults are no-ops when not training with PPO)
+        self.init_logstd = init_logstd
+        self.value_hidden = value_hidden
+
+        # Initialize base HF config attributes
+        super().__init__(**kwargs)
+
+    def to_dict(self):
+        """
+        Convert this configuration into a fully serializable dictionary.
+        """
+        output = super().to_dict()
+        return output

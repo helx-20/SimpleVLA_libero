@@ -1,0 +1,106 @@
+stage1_collect:
+  episodes_per_suite: 10000
+  generated_pool_cache: /mnt/hlx/SimpleVLA_libero_data/datasets/generated_inits
+  gpus:
+  - 1
+  init_sampler: generated
+  max_steps_per_episode: 800
+  num_workers: 1
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1
+  perturb_fraction: null
+  perturb_std: 0.02
+  policy:
+    checkpoint: YuankaiLuo/SimVLA-LIBERO
+    mode: local
+    norm_stats: ./norm_stats/libero_norm.json
+    server_host: 127.0.0.1
+    server_port: 8102
+    smolvlm_model: HuggingFaceTB/SmolVLM-500M-Instruct
+  suites:
+  - libero_spatial
+
+stage1_train:
+  batch_size: 64
+  data_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1
+  depth: 4
+  dropout: 0.1
+  expansion: 1
+  hidden_dim: 128
+  learning_rate: 0.0001
+  num_epochs: 100
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/criticality
+  seed: 42
+  test_ratio: 0.1
+  val_ratio: 0.1
+  weight_decay: 0.0
+
+test:
+  criticality_ckpt: /mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt
+  criticality_threshold: 0.0
+  depth: 4
+  dropout: 0.0
+  episodes_per_suite: 500
+  epsilon: 0.01
+  expansion: 1
+  gpus:
+  - 0
+  - 0
+  - 1
+  - 1
+  hidden_dim: 128
+  mode: metric_only
+  num_workers: 1
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/test_results/nade_original_policy
+  perturb_fraction: null
+  perturb_std: 0.02
+  perturbations_per_pool: 0
+  policy:
+    checkpoint: YuankaiLuo/SimVLA-LIBERO
+  pool_repeats: 1
+  seed: 7
+  suites:
+  - libero_10
+  - libero_goal
+  - libero_object
+  - libero_spatial
+  use_nade: true
+  weight_clip: 10.0
+
+bc_collect:
+  crit_depth: 4
+  crit_dropout: 0.0
+  crit_expansion: 1
+  crit_hidden_dim: 128
+  criticality_ckpt: /mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt
+  episodes_total: 800
+  epsilon: 0.1
+  libero_dataset_dir: /mnt/hlx/SimpleVLA_libero/datasets/metas
+  norm_stats: ./norm_stats/libero_norm.json
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_v2
+  per_suite_min: 0
+  resume_ckpt: YuankaiLuo/SimVLA-LIBERO
+  seed: 234
+  smolvlm_model: HuggingFaceTB/SmolVLM-500M-Instruct
+  suites:
+  - libero_10
+  - libero_goal
+  - libero_object
+  - libero_spatial
+  weight_clip: 10.0
+  
+bc_training:
+  batch_size: 32
+  bc_meta: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_v2/bc_train_meta.json
+  freeze_steps: 0
+  freeze_vlm: true
+  iters: 100000
+  learning_coef: 0.1
+  learning_rate: 3.0e-05
+  max_grad_norm: 1.0
+  min_lr_ratio: 0.1
+  num_workers: 4
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4
+  resume_ckpt: YuankaiLuo/SimVLA-LIBERO # /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000
+  save_interval: 10000
+  use_cosine_decay: true
+  warmup_steps: 2000
