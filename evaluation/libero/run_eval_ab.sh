@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SimVLA LIBERO A/B Comparison Evaluation
-#   FT: /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000
+#   FT: /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-20000
 #   Base: /mnt/hlx/SimpleVLA_libero_data/models/SimVLA-LIBERO
 #   Threshold=0: all episodes treated as "hard" → both models run on every ep
 #
@@ -24,7 +24,7 @@ export LIBERO_ROOT=/mnt/hlx/LIBERO
 export PYTHONPATH="${LIBERO_ROOT}:${PYTHONPATH}"
 
 BASE_CKPT="/mnt/hlx/SimpleVLA_libero_data/models/SimVLA-LIBERO"
-FT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000"
+FT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-20000"
 CRIT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt"
 NORM_STATS="/mnt/hlx/SimpleVLA_libero/norm_stats/libero_norm.json"
 SMOLVLM="/mnt/hlx/SimpleVLA_libero_data/models/SmolVLM-500M-Instruct"

@@ -83,7 +83,7 @@ bash run_eval_routed.sh <base_ckpt> <ft_ckpt> <criticality_ckpt> [num_trials] [p
 cd /mnt/hlx/SimpleVLA_libero/evaluation/libero
 bash run_eval_routed.sh \
     YuankaiLuo/SimVLA-LIBERO \
-    /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000 \
+    /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-20000 \
     /mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt \
     50 "eval_routed" "0 5 6 7"
 ```

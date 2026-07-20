@@ -36,7 +36,7 @@ utils/generate_inits.py        env.seed + env.reset to build the extended pool
 stage1/stage1_collect.py       roll SimpleVLA on the *generated* pool
         │                      one row per episode: (init_state, success)
         ▼
-stage1/stage1_train.py         train MoE criticality model
+stage1/stage1_train.py         train MLP criticality model
         │                      P(failure | init_state) per task
         ▼
 test/test_model.py             accelerated testing on the *official* pool
@@ -47,6 +47,10 @@ continual_learning/
   collect_buffer_bc.py         NADE-weighted importance sampling over LIBERO
         │                      demos (no env rollouts needed). Produces
         │                      single-demo HDF5 shards + bc_train_meta.json.
+        │
+  collect_buffer_random.py     Uniform random sampling (no criticality model
+        │                      needed) — baseline / control group. Every demo
+        │                      has equal probability. All weights = 1.0.
         ▼
   bc_offline.py                BC fine-tuning of SimpleVLA:
                                  L = MSE(action, action_gt)
@@ -65,16 +69,26 @@ continual_learning/
   fetches the 50-init benchmark pool without opening an env.
 - `utils/generate_inits.py` — CLI tool for building the extended init cache.
 - `utils/policy.py` — local SimpleVLA wrapper.
-- `utils/criticality_model.py` — multi-task MoE classifier.
+- `utils/criticality_model.py` — multi-task MLP classifier.
 - `utils/data_utils.py` — shard I/O. `save_shard(..., append=True)` is atomic
   (`.tmp` + `os.replace`) and merges trajectory `.pkl` companions.
+- `test/test_model.py` — accelerated NADE testing on the official 50-init pool.
+- `test/libero_nade.py` — NADE proposal building and IS-weight computation.
+- `stage1/stage1_collect.py` — collect rollouts on the generated pool.
+- `stage1/stage1_train.py` — train the criticality MLP model.
+- `continual_learning/collect_buffer_bc.py` — criticality-guided (NADE) demo sampler.
+- `continual_learning/collect_buffer_random.py` — uniform random demo sampler (baseline).
+- `continual_learning/bc_offline.py` — BC fine-tuning script.
+- `continual_learning/run_bc.sh` — end-to-end BC pipeline wrapper.
+- `continual_learning/run_bc_train_only.sh` — training-only wrapper.
 - `configs/default.yaml` — hyperparameters shared across stages.
+- `analysis.py`, `draw_RHF.py` — analysis and visualization utilities.
 
 ## Status
 
 All phases are implemented:
 - **Criticality training** (`stage1_collect.py` + `stage1_train.py`) — collect rollouts on
-  the generated pool and train the MoE criticality model.
+  the generated pool and train the MLP criticality model.
 - **Accelerated testing** (`test/test_model.py`) — NADE importance sampling on the
   official 50-init pool.
 - **Continual learning** — BC fine-tuning pipeline using criticality-guided demo
@@ -93,16 +107,29 @@ python -m adversarial_training.utils.generate_inits \
 python code/adversarial_training/stage1/stage1_collect.py \
     --config code/adversarial_training/configs/default.yaml
 
-# 2) Train criticality MoE.
+# 2) Train criticality MLP.
 python code/adversarial_training/stage1/stage1_train.py \
     --config code/adversarial_training/configs/default.yaml
-
+    
 # 3) Accelerated testing on the official 50-init pool (SOTA-comparable).
 python code/adversarial_training/test/test_model.py \
     --config code/adversarial_training/configs/default.yaml
 
-# 4) Continual learning: collect_buffer_bc (demos + criticality) → bc_offline.
+# 4) Continual learning: collect_buffer → bc_offline.
+#    NADE importance-sampled buffer:
 bash code/adversarial_training/continual_learning/run_bc.sh
+#    Uniform random baseline (no criticality model needed):
+python code/adversarial_training/continual_learning/collect_buffer_random.py \
+    --libero_dataset_dir /mnt/hlx/SimpleVLA_libero/datasets/metas \
+    --output_dir /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_random \
+    --episodes_total 800
+#    Then train on the random buffer:
+accelerate launch \
+    --num_processes 4 --mixed_precision bf16 \
+    code/adversarial_training/continual_learning/bc_offline.py \
+    --bc_meta /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_random/bc_train_meta.json \
+    --output_dir /mnt/hlx/SimpleVLA_libero_data/runs/bc_random \
+    --iters 100000
 # Reuse a previously-collected buffer:
 SKIP_COLLECT=1 bash code/adversarial_training/continual_learning/run_bc.sh
 # Train only (buffer already exists):
@@ -118,6 +145,7 @@ bash code/adversarial_training/continual_learning/run_bc_train_only.sh
 | `stage1_train.py` | `train:` | n/a (reads npz shards) |
 | `test_model.py` | `test:` | official 50-init pool (`load_official_pool`) |
 | `collect_buffer_bc.py` | `bc_collect:` | LIBERO official demos + criticality model |
+| `collect_buffer_random.py` | CLI flags only | LIBERO official demos (uniform random) |
 | `bc_offline.py` | `bc_training:` | n/a (reads HDF5 buffer + meta JSON) |
 
 `collect.generated_pool_cache` and `continual.buffer_collect.generated_pool_cache`
@@ -162,22 +190,42 @@ Both scripts also accept `--policy_norm_stats` and `--policy_smolvlm_model`.
 
 ## BC continual-learning pipeline
 
-The continual-learning loop uses **behavior cloning (BC)** rather than PPO:
+The continual-learning loop uses **behavior cloning (BC)** rather than PPO.
+There are two buffer collection strategies available:
 
-1. **`collect_buffer_bc.py`** — enumerates all LIBERO official demos across
-   suites, scores each demo's initial state with the criticality model, builds
-   a joint NADE proposal, and importance-samples `episodes_total` demos.
-   A `per_suite_min` lower bound ensures every suite gets enough samples.
-   Output: single-demo HDF5 shards under `bc_collect.output_dir` +
-   `bc_train_meta.json`.
+### 1. NADE importance-sampled buffer (default)
 
-2. **`bc_offline.py`** — loads the filtered demo buffer and fine-tunes
-   SimpleVLA with standard BC loss `MSE(action, action_gt)`. The VLM backbone
-   is frozen by default (`freeze_vlm: true`, implemented via `learning_coef=0`)
-   to prevent catastrophic forgetting on small fine-tuning datasets.
+**`collect_buffer_bc.py`** — enumerates all LIBERO official demos across
+suites, scores each demo's initial state with the criticality model, builds
+a joint NADE proposal, and importance-samples `episodes_total` demos.
+A `per_suite_min` lower bound ensures every suite gets enough samples.
+Output: single-demo HDF5 shards under `bc_collect.output_dir` +
+`bc_train_meta.json`.
+
+### 2. Uniform random buffer (baseline / control group)
+
+**`collect_buffer_random.py`** — uniformly random sampling from all LIBERO
+demos, **without** a criticality model. Every demo has equal probability
+of being selected, and all IS weights are set to 1.0. This serves as a
+baseline to measure the benefit of criticality-guided sampling.
 
 ```bash
-# Full pipeline
+python adversarial_training/continual_learning/collect_buffer_random.py \
+    --libero_dataset_dir /mnt/hlx/SimpleVLA_libero/datasets/metas \
+    --output_dir /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_random \
+    --episodes_total 800 \
+    --seed 42
+```
+
+### Training
+
+**`bc_offline.py`** — loads the filtered demo buffer and fine-tunes
+SimpleVLA with standard BC loss `MSE(action, action_gt)`. The VLM backbone
+is frozen by default (`freeze_vlm: true`, implemented via `learning_coef=0`)
+to prevent catastrophic forgetting on small fine-tuning datasets.
+
+```bash
+# Full pipeline (NADE sampling)
 bash adversarial_training/continual_learning/run_bc.sh
 
 # Skip buffer collection (reuse existing)
@@ -186,6 +234,12 @@ SKIP_COLLECT=1 bash adversarial_training/continual_learning/run_bc.sh
 # Training only
 bash adversarial_training/continual_learning/run_bc_train_only.sh
 ```
+
+> **Note:** The `bc_training` block in `configs/default.yaml` sets default
+> values for `bc_meta`, `output_dir`, `iters`, etc.  These YAML values
+> **override** CLI arguments — if you need to use a different buffer or
+> output dir, either (a) edit the YAML, (b) temporarily comment out the
+> relevant key, or (c) pass `--config /dev/null` to skip YAML entirely.
 
 ## Notes on the variance-based perturb dims
 
