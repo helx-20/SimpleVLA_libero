@@ -60,7 +60,7 @@ echo "  batch_size:   ${BATCH_SIZE:-32}"
 echo "  lr:           ${LR:-1e-4}"
 echo "============================================================"
 
-# ── 1) Filter demos ─────────────────────────────────────────────
+# ── Filter demos ─────────────────────────────────────────────
 if [[ "${SKIP_COLLECT:-0}" == "1" ]]; then
   echo "[run_bc] SKIP_COLLECT=1, reusing existing demos"
 else
@@ -68,51 +68,3 @@ else
   python adversarial_training/continual_learning/collect_buffer_bc.py \
       --config "${CONFIG}"
 fi
-
-# ── 2) BC training ──────────────────────────────────────────────
-echo "[run_bc] Step 2/2: bc_offline.py"
-
-# Resolve bc_meta path — it might have been generated in step 1.
-if [[ ! -f "${BC_META}" ]]; then
-  BC_OUT_DIR="$(read_yaml "bc.output_dir")"
-  if [[ -f "${BC_OUT_DIR}/bc_train_meta.json" ]]; then
-    BC_META="${BC_OUT_DIR}/bc_train_meta.json"
-  fi
-fi
-
-if [[ ! -f "${BC_META}" ]]; then
-  echo "[run_bc] ERROR: bc_train_meta.json not found at ${BC_META}"
-  echo "  Make sure collect_buffer_bc.py ran successfully (or set SKIP_COLLECT=1)."
-  exit 1
-fi
-
-mkdir -p "${OUTPUT_DIR}"
-
-# Build CLI args for bc_offline.py
-BC_ARGS=(
-  --config "${CONFIG}"
-  --bc_meta "${BC_META}"
-  --output_dir "${OUTPUT_DIR}"
-  --norm_stats_path "${NORM_STATS}"
-  --smolvlm_model_path "${SMOLVLM_MODEL}"
-)
-
-[[ -n "${RESUME_CKPT}" ]] && BC_ARGS+=(--models "${RESUME_CKPT}")
-[[ -n "${ITERS}"       ]] && BC_ARGS+=(--iters "${ITERS}")
-[[ -n "${BATCH_SIZE}"  ]] && BC_ARGS+=(--batch_size "${BATCH_SIZE}")
-[[ -n "${LR}"          ]] && BC_ARGS+=(--learning_rate "${LR}")
-
-# Multi-GPU via accelerate.
-GPUS="${GPUS:-0,1,2,3}"
-NUM_PROCESSES="${NUM_PROCESSES:-$(echo "${GPUS}" | awk -F, '{print NF}')}"
-
-echo "[run_bc] Launching bc_offline.py on GPUs ${GPUS} (${NUM_PROCESSES} processes)"
-CUDA_VISIBLE_DEVICES="${GPUS}" \
-accelerate launch \
-    --num_processes "${NUM_PROCESSES}" \
-    --num_machines 1 \
-    --mixed_precision bf16 \
-    adversarial_training/continual_learning/bc_offline.py \
-    "${BC_ARGS[@]}"
-
-echo "[run_bc] Done. Checkpoints in ${OUTPUT_DIR}"

@@ -104,36 +104,36 @@ python -m adversarial_training.utils.generate_inits \
     --suites libero_10 libero_goal libero_object libero_spatial
 
 # 1) Collect criticality training rollouts on the generated pool.
-python code/adversarial_training/stage1/stage1_collect.py \
-    --config code/adversarial_training/configs/default.yaml
+python adversarial_training/stage1/stage1_collect.py \
+    --config adversarial_training/configs/default.yaml
 
 # 2) Train criticality MLP.
-python code/adversarial_training/stage1/stage1_train.py \
-    --config code/adversarial_training/configs/default.yaml
+python adversarial_training/stage1/stage1_train.py \
+    --config adversarial_training/configs/default.yaml
     
 # 3) Accelerated testing on the official 50-init pool (SOTA-comparable).
-python code/adversarial_training/test/test_model.py \
-    --config code/adversarial_training/configs/default.yaml
+python adversarial_training/test/test_model.py \
+    --config adversarial_training/configs/default.yaml
 
 # 4) Continual learning: collect_buffer → bc_offline.
 #    NADE importance-sampled buffer:
-bash code/adversarial_training/continual_learning/run_bc.sh
+bash adversarial_training/continual_learning/run_bc.sh
 #    Uniform random baseline (no criticality model needed):
-python code/adversarial_training/continual_learning/collect_buffer_random.py \
+python adversarial_training/continual_learning/collect_buffer_random.py \
     --libero_dataset_dir /mnt/hlx/SimpleVLA_libero/datasets/metas \
     --output_dir /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_random \
     --episodes_total 800
 #    Then train on the random buffer:
 accelerate launch \
     --num_processes 4 --mixed_precision bf16 \
-    code/adversarial_training/continual_learning/bc_offline.py \
+    adversarial_training/continual_learning/bc_offline.py \
     --bc_meta /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_random/bc_train_meta.json \
     --output_dir /mnt/hlx/SimpleVLA_libero_data/runs/bc_random \
     --iters 100000
 # Reuse a previously-collected buffer:
-SKIP_COLLECT=1 bash code/adversarial_training/continual_learning/run_bc.sh
+SKIP_COLLECT=1 bash adversarial_training/continual_learning/run_bc.sh
 # Train only (buffer already exists):
-bash code/adversarial_training/continual_learning/run_bc_train_only.sh
+bash adversarial_training/continual_learning/run_bc_train_only.sh
 ```
 
 ## Config keys, by stage
@@ -179,10 +179,10 @@ test:
 Or override on the CLI without touching the YAML:
 
 ```bash
-python code/adversarial_training/test/test_model.py \
+python adversarial_training/test/test_model.py \
     --policy_checkpoint /mnt/.../runs/bc_continual/ckpt-10000
 
-python code/adversarial_training/continual_learning/collect_buffer_bc.py \
+python adversarial_training/continual_learning/collect_buffer_bc.py \
     --policy_checkpoint /mnt/.../runs/bc_continual/ckpt-10000
 ```
 

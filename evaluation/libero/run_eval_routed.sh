@@ -17,7 +17,7 @@ export LIBERO_ROOT="${SCRIPT_DIR}/LIBERO"
 export PYTHONPATH="${LIBERO_ROOT}:${PYTHONPATH}"
 
 BASE_CKPT=${1:-"YuankaiLuo/SimVLA-LIBERO"}
-FT_CKPT=${2:-"/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-20000"}
+FT_CKPT=${2:-"/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-40000"}
 CRIT_CKPT=${3:-"/mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt"}
 NUM_TRIALS=${4:-50}
 OUTPUT_PREFIX=${5:-"eval_routed"}

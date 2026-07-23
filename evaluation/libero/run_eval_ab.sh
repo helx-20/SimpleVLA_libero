@@ -24,7 +24,7 @@ export LIBERO_ROOT=/mnt/hlx/LIBERO
 export PYTHONPATH="${LIBERO_ROOT}:${PYTHONPATH}"
 
 BASE_CKPT="/mnt/hlx/SimpleVLA_libero_data/models/SimVLA-LIBERO"
-FT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual/ckpt-20000"
+FT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_random/ckpt-40000"
 CRIT_CKPT="/mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt"
 NORM_STATS="/mnt/hlx/SimpleVLA_libero/norm_stats/libero_norm.json"
 SMOLVLM="/mnt/hlx/SimpleVLA_libero_data/models/SmolVLM-500M-Instruct"

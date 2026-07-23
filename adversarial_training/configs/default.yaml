@@ -6,11 +6,11 @@ stage1_collect:
   init_sampler: generated
   max_steps_per_episode: 800
   num_workers: 1
-  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1_new
   perturb_fraction: null
   perturb_std: 0.02
   policy:
-    checkpoint: YuankaiLuo/SimVLA-LIBERO
+    checkpoint: /mnt/hlx/SimpleVLA_libero_data/runs/origin_finetune/ckpt-40000 # YuankaiLuo/SimVLA-LIBERO
     mode: local
     norm_stats: ./norm_stats/libero_norm.json
     server_host: 127.0.0.1
@@ -21,14 +21,14 @@ stage1_collect:
 
 stage1_train:
   batch_size: 64
-  data_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1
+  data_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/stage1_new
   depth: 4
   dropout: 0.1
   expansion: 1
   hidden_dim: 128
   learning_rate: 0.0001
   num_epochs: 100
-  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/criticality
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/criticality_new
   seed: 42
   test_ratio: 0.1
   val_ratio: 0.1
@@ -71,12 +71,12 @@ bc_collect:
   crit_dropout: 0.0
   crit_expansion: 1
   crit_hidden_dim: 128
-  criticality_ckpt: /mnt/hlx/SimpleVLA_libero_data/runs/criticality/best.pt
-  episodes_total: 800
+  criticality_ckpt: /mnt/hlx/SimpleVLA_libero_data/runs/criticality_new/best.pt
+  episodes_total: 1000
   epsilon: 0.1
   libero_dataset_dir: /mnt/hlx/SimpleVLA_libero/datasets/metas
   norm_stats: ./norm_stats/libero_norm.json
-  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_v2
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_new
   per_suite_min: 0
   resume_ckpt: YuankaiLuo/SimVLA-LIBERO
   seed: 234
@@ -90,17 +90,17 @@ bc_collect:
   
 bc_training:
   batch_size: 32
-  bc_meta: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_v2/bc_train_meta.json
+  bc_meta: /mnt/hlx/SimpleVLA_libero_data/datasets/bc_buffer_new/bc_train_meta.json
   freeze_steps: 0
   freeze_vlm: true
-  iters: 20000
+  iters: 100000
   learning_coef: 0.1
   learning_rate: 3.0e-05
   max_grad_norm: 1.0
   min_lr_ratio: 0.1
-  num_workers: 4
-  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_random
-  resume_ckpt: YuankaiLuo/SimVLA-LIBERO # /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000
+  num_workers: 8
+  output_dir: /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_new
+  resume_ckpt: /mnt/hlx/SimpleVLA_libero_data/runs/origin_finetune/ckpt-40000 # YuankaiLuo/SimVLA-LIBERO # /mnt/hlx/SimpleVLA_libero_data/runs/bc_continual_v4/ckpt-15000
   save_interval: 10000
   use_cosine_decay: true
   warmup_steps: 2000
